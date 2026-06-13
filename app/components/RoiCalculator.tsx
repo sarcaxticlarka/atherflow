@@ -23,12 +23,20 @@ export default function RoiCalculator() {
   
   const co2ReducedTons = Math.round(fuelSavedTons * 3.114);
 
+  // Environmental Equivalencies
+  const treesPlanted = Math.round(co2ReducedTons * 16.5);
+  const carsRemoved = Math.round(co2ReducedTons / 4.6);
+
   const formatCurrency = (val: number) => {
     if (val >= 1000000) {
       return `$${(val / 1000000).toFixed(1)}M`;
     }
     return `$${val.toLocaleString()}`;
   };
+
+  // Dynamic bar height percentages (clamped)
+  const traditionalHeight = Math.max(30, Math.min(100, Math.round((waitTime / 24) * 80)));
+  const aetherFlowHeight = Math.max(20, Math.min(95, Math.round(traditionalHeight * 0.65)));
 
   return (
     <section className="relative w-full py-24 px-6 lg:px-12 bg-obsidian border-b border-white/5">
@@ -148,7 +156,7 @@ export default function RoiCalculator() {
 
             </div>
 
-            {/* Flat Comparative chart (Inspired by the 'OPTIMIZED FOR SAVINGS' Bar chart in image 2) */}
+            {/* Flat Comparative chart (Inspired by 'OPTIMIZED FOR SAVINGS' Bar chart in image 2) */}
             <div className="card-panel p-6 bg-[#0B1126] border border-white/5">
               <span className="text-[9px] font-orbitron text-gray-500 uppercase tracking-widest block mb-4">
                 PORT DWELL COST BREAKDOWN
@@ -159,10 +167,10 @@ export default function RoiCalculator() {
                 <div>
                   <div className="flex justify-between items-end text-xs text-gray-400 mb-1">
                     <span>Traditional Logistics Operations</span>
-                    <span className="font-bold text-white font-mono">100%</span>
+                    <span className="font-bold text-white font-mono">{traditionalHeight}%</span>
                   </div>
                   <div className="h-4 w-full bg-obsidian border border-white/5">
-                    <div className="h-full bg-white/20" style={{ width: "100%" }}></div>
+                    <div className="h-full bg-white/20 transition-all duration-500 ease-out" style={{ width: `${traditionalHeight}%` }}></div>
                   </div>
                 </div>
 
@@ -170,17 +178,17 @@ export default function RoiCalculator() {
                 <div>
                   <div className="flex justify-between items-end text-xs text-gray-400 mb-1">
                     <span>AetherFlow Deployment</span>
-                    <span className="font-bold text-gold font-mono">65%</span>
+                    <span className="font-bold text-gold font-mono">{aetherFlowHeight}%</span>
                   </div>
                   <div className="h-4 w-full bg-obsidian border border-white/5">
-                    <div className="h-full bg-gold" style={{ width: "65%" }}></div>
+                    <div className="h-full bg-gold transition-all duration-500 ease-out" style={{ width: `${aetherFlowHeight}%` }}></div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-between items-center text-[10px] text-gray-500 mt-6 pt-4 border-t border-white/5">
-                <span>Dwell overhead savings:</span>
-                <span className="font-orbitron font-semibold text-white">35% Net Efficiency gain</span>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-[10px] text-gray-500 mt-6 pt-4 border-t border-white/5 gap-2">
+                <span>Equivalent offset: <strong className="text-white font-mono">{treesPlanted.toLocaleString()} trees</strong> grown for 10 years</span>
+                <span>Vehicles offset: <strong className="text-cyber-blue font-mono">{carsRemoved.toLocaleString()} cars / yr</strong></span>
               </div>
             </div>
 

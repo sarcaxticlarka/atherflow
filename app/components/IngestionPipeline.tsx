@@ -16,6 +16,8 @@ export default function IngestionPipeline() {
   const [visionActive, setVisionActive] = useState(false);
   const [telemetryActive, setTelemetryActive] = useState(false);
   const [telemetryStream, setTelemetryStream] = useState<TelemetryPoint[]>([]);
+  const [consoleView, setConsoleView] = useState<"command" | "json">("command");
+  const [copied, setCopied] = useState(false);
   const streamRef = useRef<TelemetryPoint[]>([]);
 
   const mockManifests = [
@@ -69,6 +71,33 @@ export default function IngestionPipeline() {
 
   const isSynthesizing = textActive && visionActive && telemetryActive;
 
+  // JSON API payload for copy
+  const getJsonPayload = () => {
+    return JSON.stringify(
+      {
+        command_id: "ATH-GEM-89021",
+        timestamp: new Date().toISOString(),
+        vessel: textData?.vessel || "Oceanus Leviathan",
+        action: "REBERTH_SCHEDULE",
+        target_coordinates: "51.9244 N, 4.4777 E",
+        adjustments: {
+          crane_line: 4,
+          wind_limit_kts: telemetryStream[telemetryStream.length - 1]?.wind.toFixed(1) || "15.0",
+          lock_target_locked: visionActive,
+        },
+        status: "APPROVED_BY_GEMINI",
+      },
+      null,
+      2
+    );
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(getJsonPayload());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <section className="relative w-full py-24 px-6 lg:px-12 bg-obsidian border-b border-white/5">
       <div className="max-w-7xl mx-auto flex flex-col gap-12">
@@ -86,14 +115,14 @@ export default function IngestionPipeline() {
           </p>
         </div>
 
-        {/* Spacious Split Layout */}
+        {/* Spacious Split Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start mt-4">
           
-          {/* Left Column: Streams List (Input slots) */}
+          {/* Left Column: Streams List */}
           <div className="lg:col-span-5 flex flex-col gap-6">
             
             {/* Stream 1: Text */}
-            <div className="card-panel p-6 rounded-none bg-[#0B1126] border border-white/5">
+            <div className={`card-panel p-6 rounded-none bg-[#0B1126] border transition-all duration-300 ${textActive ? "border-gold/30" : "border-white/5"}`}>
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <span className="text-[9px] font-orbitron text-gray-500 uppercase">STREAM 01 // TEXT</span>
@@ -131,7 +160,7 @@ export default function IngestionPipeline() {
             </div>
 
             {/* Stream 2: Vision */}
-            <div className="card-panel p-6 rounded-none bg-[#0B1126] border border-white/5">
+            <div className={`card-panel p-6 rounded-none bg-[#0B1126] border transition-all duration-300 ${visionActive ? "border-gold/30" : "border-white/5"}`}>
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <span className="text-[9px] font-orbitron text-gray-500 uppercase">STREAM 02 // VISION</span>
@@ -156,6 +185,9 @@ export default function IngestionPipeline() {
                   className={`object-cover transition-opacity duration-300 ${visionActive ? "opacity-75" : "opacity-10"}`}
                 />
                 
+                {/* Visual Scanline Sweep (CCTV effect) */}
+                {visionActive && <div className="cctv-scanline"></div>}
+
                 {/* Vision Overlays */}
                 <div className="absolute inset-0 p-3 flex flex-col justify-between font-mono text-[9px] text-gray-500 pointer-events-none select-none">
                   <div className="flex justify-between">
@@ -185,7 +217,7 @@ export default function IngestionPipeline() {
             </div>
 
             {/* Stream 3: Telemetry */}
-            <div className="card-panel p-6 rounded-none bg-[#0B1126] border border-white/5">
+            <div className={`card-panel p-6 rounded-none bg-[#0B1126] border transition-all duration-300 ${telemetryActive ? "border-gold/30" : "border-white/5"}`}>
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <span className="text-[9px] font-orbitron text-gray-500 uppercase">STREAM 03 // METEO</span>
@@ -237,7 +269,9 @@ export default function IngestionPipeline() {
 
           {/* Right Column: AI Synthesis Terminal output */}
           <div className="lg:col-span-7 flex flex-col h-full self-stretch justify-between">
-            <div className="card-panel p-8 rounded-none border border-white/5 bg-[#0B1126] flex-1 flex flex-col justify-between min-h-[400px]">
+            <div className={`card-panel p-8 rounded-none border bg-[#0B1126] flex-1 flex flex-col justify-between min-h-[400px] transition-all duration-300 ${
+              isSynthesizing ? "border-gold/25" : "border-white/5"
+            }`}>
               
               <div>
                 {/* Header info */}
@@ -248,11 +282,23 @@ export default function IngestionPipeline() {
                       Gemini Synthesis Engine
                     </span>
                   </div>
-                  <span className={`text-[8px] font-orbitron px-2 py-0.5 border ${
-                    isSynthesizing ? "bg-gold/10 border-gold/30 text-gold" : "bg-white/5 border-white/10 text-gray-500"
-                  }`}>
-                    {isSynthesizing ? "CORE ACTIVE" : "WAITING FOR INPUTS"}
-                  </span>
+                  
+                  {isSynthesizing && (
+                    <div className="flex gap-1.5 p-0.5 bg-obsidian border border-white/5">
+                      <button
+                        onClick={() => setConsoleView("command")}
+                        className={`px-2 py-0.5 text-[8px] font-orbitron ${consoleView === "command" ? "bg-white text-black font-bold" : "text-gray-500"}`}
+                      >
+                        COMMANDS
+                      </button>
+                      <button
+                        onClick={() => setConsoleView("json")}
+                        className={`px-2 py-0.5 text-[8px] font-orbitron ${consoleView === "json" ? "bg-white text-black font-bold" : "text-gray-500"}`}
+                      >
+                        JSON API
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Synthesis Output */}
@@ -268,27 +314,44 @@ export default function IngestionPipeline() {
                   </div>
                 ) : (
                   <div className="font-mono text-xs text-gray-400 flex flex-col gap-4">
-                    <div className="p-5 bg-[#050814] border border-gold/20 relative">
-                      <span className="text-[9px] font-orbitron text-gold block mb-3 uppercase tracking-widest">// AUTOMATED COMMAND PROTOCOL</span>
-                      <p className="text-white text-sm font-outfit font-medium mb-3">
-                        Berth repositioning and hoist dampening adjustment approved for <strong className="text-cyber-blue font-orbitron">{textData?.vessel}</strong>.
-                      </p>
-                      
-                      <ul className="space-y-2 list-none pl-0 text-[11px] leading-relaxed">
-                        <li className="flex gap-2">
-                          <span className="text-gold">●</span>
-                          <span><strong>Meteo Alert:</strong> Gusts at {telemetryStream[telemetryStream.length-1]?.wind.toFixed(1)} kts require dampening shifts.</span>
-                        </li>
-                        <li className="flex gap-2">
-                          <span className="text-gold">●</span>
-                          <span><strong>Computer Vision:</strong> Quay locks target locked and verified (confidence: 99.8%).</span>
-                        </li>
-                        <li className="flex gap-2">
-                          <span className="text-gold">●</span>
-                          <span><strong>Platform Command:</strong> Shift vessel to Berth C to avoid low-tide wind shear limits.</span>
-                        </li>
-                      </ul>
-                    </div>
+                    {consoleView === "command" ? (
+                      <div className="p-5 bg-[#050814] border border-gold/20 relative">
+                        <span className="text-[9px] font-orbitron text-gold block mb-3 uppercase tracking-widest">// AUTOMATED COMMAND PROTOCOL</span>
+                        <p className="text-white text-sm font-outfit font-medium mb-3">
+                          Berth repositioning and hoist dampening adjustment approved for <strong className="text-cyber-blue font-orbitron">{textData?.vessel}</strong>.
+                        </p>
+                        
+                        <ul className="space-y-2 list-none pl-0 text-[11px] leading-relaxed">
+                          <li className="flex gap-2">
+                            <span className="text-gold">●</span>
+                            <span><strong>Meteo Alert:</strong> Gusts at {telemetryStream[telemetryStream.length-1]?.wind.toFixed(1)} kts require dampening shifts.</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-gold">●</span>
+                            <span><strong>Computer Vision:</strong> Quay locks target locked and verified (confidence: 99.8%).</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-gold">●</span>
+                            <span><strong>Platform Command:</strong> Shift vessel to Berth C to avoid low-tide wind shear limits.</span>
+                          </li>
+                        </ul>
+                      </div>
+                    ) : (
+                      <div className="p-5 bg-[#050814] border border-white/5 relative overflow-x-auto max-h-[220px]">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-[9px] font-orbitron text-gray-500 uppercase">// JSON API OUT</span>
+                          <button
+                            onClick={handleCopy}
+                            className="text-[8px] font-orbitron border border-white/10 px-2 py-0.5 text-white hover:border-gold hover:text-gold"
+                          >
+                            {copied ? "COPIED!" : "COPY PAYLOAD"}
+                          </button>
+                        </div>
+                        <pre className="text-[9px] leading-relaxed text-gray-300 font-mono">
+                          {getJsonPayload()}
+                        </pre>
+                      </div>
+                    )}
 
                     <div className="flex justify-between items-center text-[9px] text-gray-500 pt-2 border-t border-white/5">
                       <span>CMD_ID: ATH-GEM-89021</span>

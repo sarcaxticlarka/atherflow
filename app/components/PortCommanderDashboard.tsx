@@ -28,6 +28,9 @@ export default function PortCommanderDashboard() {
     { id: "v3", name: "Maersk Titan", eta: "15:00", dwell: "24h", berth: "Berth C", risk: false },
   ]);
   const [schedulingStatus, setSchedulingStatus] = useState("MANUAL REVIEW");
+  const [isSolving, setIsSolving] = useState(false);
+  const [solverLogs, setSolverLogs] = useState<string[]>([]);
+  const [solvingProgress, setSolvingProgress] = useState(0);
 
   const handleDragBerth = (vesselId: string, targetBerth: string) => {
     setVessels(vessels.map(v => {
@@ -43,15 +46,51 @@ export default function PortCommanderDashboard() {
   };
 
   const handleOptimizeBerths = () => {
-    setSchedulingStatus("SOLVING...");
-    setTimeout(() => {
-      setVessels(vessels.map(v => {
-        if (v.id === "v1") return { ...v, berth: "Berth C", risk: false };
-        if (v.id === "v3") return { ...v, berth: "Berth A", risk: false };
-        return v;
-      }));
-      setSchedulingStatus("OPTIMIZED");
-    }, 1000);
+    if (isSolving) return;
+    setIsSolving(true);
+    setSolverLogs([]);
+    setSolvingProgress(0);
+    setSchedulingStatus("OPTIMIZING...");
+
+    const logs = [
+      "[SYS] Initializing re-routing optimization solvers...",
+      "[DATA] Pulling marine buoy wind logs: gusts 18.2 kts.",
+      "[WARN] Berth A wind limits exceeded (thr: 12 kts). Flagging vessel risk.",
+      "[CALC] Computing alternative schedules. Minimizing dwell shift.",
+      "[EXEC] Moving Oceanus Leviathan to Berth C. Shifting Maersk Titan to Berth A.",
+      "[SYS] Berth schedule constraints solved. Deployment ready."
+    ];
+
+    // Progress bar animation
+    let prog = 0;
+    const progInterval = setInterval(() => {
+      prog += 5;
+      if (prog >= 100) {
+        setSolvingProgress(100);
+        clearInterval(progInterval);
+      } else {
+        setSolvingProgress(prog);
+      }
+    }, 100);
+
+    // Logs sequence
+    logs.forEach((log, index) => {
+      setTimeout(() => {
+        setSolverLogs(prev => [...prev, log]);
+        if (index === logs.length - 1) {
+          // Finish solving
+          setTimeout(() => {
+            setVessels(vessels.map(v => {
+              if (v.id === "v1") return { ...v, berth: "Berth C", risk: false };
+              if (v.id === "v3") return { ...v, berth: "Berth A", risk: false };
+              return v;
+            }));
+            setIsSolving(false);
+            setSchedulingStatus("OPTIMIZED");
+          }, 300);
+        }
+      }, (index + 1) * 350);
+    });
   };
 
   // --- Section 2: AGV Traffic Controller States ---
@@ -180,51 +219,68 @@ export default function PortCommanderDashboard() {
                 </span>
               </div>
 
-              {/* Vessel schedule list */}
-              <div className="flex flex-col gap-3">
-                {vessels.map((vessel) => (
-                  <div
-                    key={vessel.id}
-                    className={`p-4 bg-[#050814]/80 border transition-all duration-300 ${
-                      vessel.risk ? "border-rose-500" : "border-white/5"
-                    } flex justify-between items-center`}
-                  >
-                    <div>
-                      <span className="text-[8px] font-mono text-gray-500">SHIP:</span>
-                      <h4 className="text-xs font-bold text-white font-outfit uppercase mt-0.5">{vessel.name}</h4>
-                      <div className="flex gap-4 mt-2 text-[9px] font-mono text-gray-400">
-                        <span>ETA: <strong className="text-cyber-blue font-orbitron font-normal">{vessel.eta}</strong></span>
-                        <span>DWELL: {vessel.dwell}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      {/* Berth buttons */}
-                      <div className="flex gap-1 bg-obsidian p-1 border border-white/5">
-                        {["Berth A", "Berth B", "Berth C"].map((b) => (
-                          <button
-                            key={b}
-                            onClick={() => handleDragBerth(vessel.id, b)}
-                            className={`px-2 py-1 text-[8px] font-orbitron transition-all ${
-                              vessel.berth === b
-                                ? "bg-white text-black font-bold"
-                                : "text-gray-500 hover:text-white"
-                            }`}
-                          >
-                            {b.split(" ")[1]}
-                          </button>
-                        ))}
-                      </div>
-
-                      {vessel.risk && (
-                        <span className="text-xs text-rose-500 font-bold">⚠️</span>
-                      )}
-                    </div>
+              {/* Solver Console Output during Active state */}
+              {isSolving ? (
+                <div className="bg-[#050814] p-5 border border-white/5 font-mono text-[9px] text-gray-400 flex flex-col gap-1.5 min-h-[200px]">
+                  <div className="flex justify-between items-center mb-3 pb-2 border-b border-white/5">
+                    <span className="text-gold font-orbitron uppercase text-[8px]">// RESOLUTION ENGINE LOGS</span>
+                    <span className="text-white">{solvingProgress}%</span>
                   </div>
-                ))}
-              </div>
+                  <div className="h-1 w-full bg-navy mb-2">
+                    <div className="h-full bg-gold transition-all duration-100" style={{ width: `${solvingProgress}%` }}></div>
+                  </div>
+                  {solverLogs.map((log, i) => (
+                    <div key={i} className={log.includes("[WARN]") ? "text-rose-400" : log.includes("[SUCCESS]") || log.includes("[EXEC]") ? "text-gold" : "text-gray-400"}>
+                      {log}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* Vessel schedule list */
+                <div className="flex flex-col gap-3">
+                  {vessels.map((vessel) => (
+                    <div
+                      key={vessel.id}
+                      className={`p-4 bg-[#050814]/80 border transition-all duration-300 ${
+                        vessel.risk ? "border-rose-500" : "border-white/5"
+                      } flex justify-between items-center`}
+                    >
+                      <div>
+                        <span className="text-[8px] font-mono text-gray-500">SHIP:</span>
+                        <h4 className="text-xs font-bold text-white font-outfit uppercase mt-0.5">{vessel.name}</h4>
+                        <div className="flex gap-4 mt-2 text-[9px] font-mono text-gray-400">
+                          <span>ETA: <strong className="text-cyber-blue font-orbitron font-normal">{vessel.eta}</strong></span>
+                          <span>DWELL: {vessel.dwell}</span>
+                        </div>
+                      </div>
 
-              {vessels.some(v => v.risk) && (
+                      <div className="flex items-center gap-3">
+                        <div className="flex gap-1 bg-obsidian p-1 border border-white/5">
+                          {["Berth A", "Berth B", "Berth C"].map((b) => (
+                            <button
+                              key={b}
+                              onClick={() => handleDragBerth(vessel.id, b)}
+                              className={`px-2 py-1 text-[8px] font-orbitron transition-all ${
+                                vessel.berth === b
+                                  ? "bg-white text-black font-bold"
+                                  : "text-gray-500 hover:text-white"
+                              }`}
+                            >
+                              {b.split(" ")[1]}
+                            </button>
+                          ))}
+                        </div>
+
+                        {vessel.risk && (
+                          <span className="text-xs text-rose-500 font-bold">⚠️</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {vessels.some(v => v.risk) && !isSolving && (
                 <div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 text-[10px] text-rose-400 font-mono">
                   🚨 CONFLICT: Oceanus Leviathan scheduled in Berth A. Wind warnings suggest slip hazard. Move vessel.
                 </div>
@@ -234,9 +290,10 @@ export default function PortCommanderDashboard() {
             <div className="mt-6 pt-4 border-t border-white/5">
               <button
                 onClick={handleOptimizeBerths}
-                className="w-full py-2.5 bg-white hover:bg-gold text-black text-[10px] font-orbitron font-bold tracking-widest uppercase transition-all"
+                disabled={isSolving}
+                className="w-full py-2.5 bg-white hover:bg-gold text-black text-[10px] font-orbitron font-bold tracking-widest uppercase transition-all disabled:opacity-40"
               >
-                Resolve Scheduler Conflicts
+                {isSolving ? "Optimizing Layout..." : "Resolve Scheduler Conflicts"}
               </button>
             </div>
           </div>
@@ -255,10 +312,8 @@ export default function PortCommanderDashboard() {
                 </span>
               </div>
 
-              {/* Minimal SVG AGV grid */}
               <div className="relative aspect-video w-full overflow-hidden border border-white/5 bg-[#050814] p-4 flex flex-col justify-between">
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 500 200">
-                  {/* Lane tracks */}
                   <line x1="50" y1="50" x2="450" y2="50" stroke="rgba(255, 255, 255, 0.05)" strokeWidth="3" />
                   <line x1="50" y1="150" x2="450" y2="150" stroke="rgba(255, 255, 255, 0.05)" strokeWidth="3" />
                   <line x1="250" y1="50" x2="250" y2="150" stroke="rgba(255, 255, 255, 0.03)" strokeWidth="2" strokeDasharray="3 3" />
@@ -267,13 +322,11 @@ export default function PortCommanderDashboard() {
                     <path d="M 50 50 L 250 150 L 450 50" fill="none" stroke="#D4AF37" strokeWidth="1.5" strokeDasharray="4 2" />
                   )}
 
-                  {/* Node Pins */}
                   <g>
                     <circle cx="50" cy="50" r="5" fill="#0B1126" stroke="#00D2FF" strokeWidth="1" />
                     <text x="50" y="38" textAnchor="middle" fill="#555" fontSize="7" fontFamily="Orbitron">Node A</text>
                   </g>
 
-                  {/* Clickable Node B Blockage */}
                   <g className="cursor-pointer" onClick={() => setBottleneckNode(bottleneckNode === "Node B" ? null : "Node B")}>
                     <circle
                       cx="250"
@@ -308,7 +361,6 @@ export default function PortCommanderDashboard() {
                     <text x="450" y="165" textAnchor="middle" fill="#555" fontSize="7" fontFamily="Orbitron">Node F</text>
                   </g>
 
-                  {/* AGV Vehicle indicators */}
                   {agvs.map((agv) => (
                     <g key={agv.id}>
                       <circle
@@ -356,7 +408,6 @@ export default function PortCommanderDashboard() {
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
             
-            {/* Health parameters */}
             <div className="md:col-span-8 flex flex-col gap-6">
               <div>
                 <span className="text-[9px] text-gray-500 font-mono uppercase block mb-1">CRANE LINE 4 // ENGINE ROTOR</span>
@@ -391,7 +442,6 @@ export default function PortCommanderDashboard() {
               </div>
             </div>
 
-            {/* Repair Controls */}
             <div className="md:col-span-4 flex flex-col justify-center gap-4 md:border-l border-white/5 md:pl-8">
               {craneHealth < 50 ? (
                 <>

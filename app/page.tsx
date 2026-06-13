@@ -7,41 +7,98 @@ import IngestionPipeline from "./components/IngestionPipeline";
 import PortCommanderDashboard from "./components/PortCommanderDashboard";
 import RoiCalculator from "./components/RoiCalculator";
 
+const sectionsList = [
+  { id: "hero", label: "Hero Portal" },
+  { id: "operations-hub", label: "Operations Hub" },
+  { id: "ingestion-pipeline", label: "Ingestion Pipeline" },
+  { id: "commander-dashboard", label: "Commander Dashboard" },
+  { id: "roi-calculator", label: "ROI Impact" },
+];
+
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState("hero");
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 40);
     };
     window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+
+    // IntersectionObserver scroll tracker
+    const observerOptions = {
+      root: null,
+      rootMargin: "-45% 0px -45% 0px", // Trigger when section occupies the center
+      threshold: 0,
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.id);
+        }
+      });
+    }, observerOptions);
+
+    sectionsList.forEach((sec) => {
+      const el = document.getElementById(sec.id);
+      if (el) observer.observe(el);
+    });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      observer.disconnect();
+    };
   }, []);
 
   return (
     <div className="flex flex-col min-h-screen bg-obsidian text-foreground overflow-x-hidden relative font-outfit">
       
+      {/* FLOATING DOT SIDEBAR NAV (Highly premium detail) */}
+      <div className="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-40 hidden lg:flex">
+        {sectionsList.map((sec) => {
+          const isActive = activeSection === sec.id;
+          return (
+            <a
+              key={sec.id}
+              href={`#${sec.id}`}
+              className="group flex items-center justify-end gap-3 cursor-pointer"
+            >
+              {/* Tooltip on hover */}
+              <span className={`text-[8px] font-orbitron tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
+                isActive ? "text-gold font-bold" : "text-gray-500"
+              }`}>
+                {sec.label}
+              </span>
+              {/* Dot */}
+              <span className={`h-2 w-2 rounded-full border transition-all duration-300 ${
+                isActive 
+                  ? "bg-gold border-gold scale-125 shadow-[0_0_8px_rgba(212,175,55,0.6)]" 
+                  : "bg-transparent border-white/20 group-hover:border-white/50"
+              }`}></span>
+            </a>
+          );
+        })}
+      </div>
+
       {/* 1. MINIMAL FLOATING NAVBAR */}
       <header className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${
         scrolled ? "bg-[#050814]/90 backdrop-blur-md border-b border-white/5 py-4" : "bg-transparent py-8"
       }`}>
         <div className="max-w-7xl mx-auto px-6 lg:px-12 flex justify-between items-center">
-          {/* Brand Logo */}
           <div className="flex items-center gap-2.5">
             <span className="font-orbitron font-black text-lg tracking-[0.2em] text-white">
               AETHER<span className="text-gold font-light">FLOW</span>
             </span>
           </div>
 
-          {/* Clean Spaced Nav */}
           <nav className="hidden md:flex gap-10 text-[10px] font-orbitron tracking-[0.2em] text-gray-400 uppercase">
-            <a href="#operations-hub" className="hover:text-gold transition-colors">Operations</a>
-            <a href="#ingestion-pipeline" className="hover:text-gold transition-colors">Ingestion</a>
-            <a href="#commander-dashboard" className="hover:text-gold transition-colors">Commander</a>
-            <a href="#roi-calculator" className="hover:text-gold transition-colors">ROI Impact</a>
+            <a href="#operations-hub" className={`hover:text-gold transition-colors ${activeSection === "operations-hub" ? "text-gold" : ""}`}>Operations</a>
+            <a href="#ingestion-pipeline" className={`hover:text-gold transition-colors ${activeSection === "ingestion-pipeline" ? "text-gold" : ""}`}>Ingestion</a>
+            <a href="#commander-dashboard" className={`hover:text-gold transition-colors ${activeSection === "commander-dashboard" ? "text-gold" : ""}`}>Commander</a>
+            <a href="#roi-calculator" className={`hover:text-gold transition-colors ${activeSection === "roi-calculator" ? "text-gold" : ""}`}>ROI Impact</a>
           </nav>
 
-          {/* Secure State & CTA */}
           <div className="flex items-center gap-6">
             <span className="hidden sm:inline-block text-[9px] text-gray-500 font-mono tracking-widest uppercase">
               STATUS: // NOMINAL
@@ -56,8 +113,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* 2. HERO PAGE REDESIGN (Inspired by 'PORTABLE SPACE' Crane Visual Layout) */}
-      <section className="relative w-full min-h-screen pt-36 pb-24 px-6 lg:px-12 flex flex-col justify-between overflow-hidden border-b border-white/5">
+      {/* 2. HERO PAGE REDESIGN */}
+      <section id="hero" className="relative w-full min-h-screen pt-36 pb-24 px-6 lg:px-12 flex flex-col justify-between overflow-hidden border-b border-white/5">
         
         {/* Giant background lettering */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden z-0">
@@ -66,7 +123,6 @@ export default function Home() {
           </span>
         </div>
 
-        {/* Dummy placeholder for layout alignment */}
         <div></div>
 
         {/* Center Container Content Grid */}
@@ -106,7 +162,6 @@ export default function Home() {
               className="object-cover object-center transition-transform duration-700 hover:scale-105"
               priority
             />
-            {/* Dark elegant vignette borders */}
             <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-transparent to-transparent"></div>
           </div>
 
@@ -133,16 +188,15 @@ export default function Home() {
               </ul>
             </div>
 
-            {/* Statistics block similar to bottom right in inspiration */}
+            {/* Statistics block */}
             <div className="card-panel p-5 rounded-none border border-white/5 bg-[#0B1126]/85 flex justify-between items-center gap-4">
               <div>
                 <span className="text-2xl font-bold font-orbitron text-white leading-none">450+</span>
                 <span className="text-[9px] text-gray-500 font-orbitron uppercase block mt-0.5">Industry leaders trust us</span>
               </div>
               
-              {/* Fake user avatars */}
               <div className="flex -space-x-2">
-                <div className="h-7 w-7 rounded-full bg-crimson border-2 border-navy flex items-center justify-center text-[8px] font-bold">U1</div>
+                <div className="h-7 w-7 rounded-full bg-crimson border-2 border-navy flex items-center justify-center text-[8px] font-bold text-white">U1</div>
                 <div className="h-7 w-7 rounded-full bg-gold border-2 border-navy flex items-center justify-center text-[8px] font-bold text-black">U2</div>
                 <div className="h-7 w-7 rounded-full bg-cyber-blue border-2 border-navy flex items-center justify-center text-[8px] font-bold text-black">U3</div>
               </div>

@@ -65,7 +65,9 @@ export default function GlobalOperationsHub() {
   const [selectedPort, setSelectedPort] = useState<PortData | null>(ports[0]);
   const [simulatedTime, setSimulatedTime] = useState("");
   const [congestionMode, setCongestionMode] = useState<boolean>(false);
+  const [animatedEfficiency, setAnimatedEfficiency] = useState<number>(90);
 
+  // System Clock
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
@@ -75,6 +77,39 @@ export default function GlobalOperationsHub() {
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Metric Count-Up Effect on selection
+  useEffect(() => {
+    if (!selectedPort) return;
+    
+    // Parse target efficiency (e.g. 98.7% -> 98.7)
+    const targetVal = parseFloat(selectedPort.efficiency);
+    const startVal = targetVal - 12;
+    setAnimatedEfficiency(startVal);
+
+    let current = startVal;
+    const duration = 400; // ms
+    const stepTime = 20; // ms
+    const increment = (targetVal - startVal) / (duration / stepTime);
+
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= targetVal) {
+        setAnimatedEfficiency(targetVal);
+        clearInterval(timer);
+      } else {
+        setAnimatedEfficiency(parseFloat(current.toFixed(1)));
+      }
+    }, stepTime);
+
+    return () => clearInterval(timer);
+  }, [selectedPort]);
+
+  // Route highlight matching: Check if route connects to selected port
+  const isRouteHighlighted = (portA: string, portB: string) => {
+    if (!selectedPort) return true;
+    return selectedPort.code === portA || selectedPort.code === portB;
+  };
 
   return (
     <section className="relative w-full py-24 px-6 lg:px-12 bg-obsidian border-b border-white/5">
@@ -150,42 +185,46 @@ export default function GlobalOperationsHub() {
               strokeWidth="1.5"
             />
 
-            {/* Clean trade routes */}
+            {/* Clean trade routes with active path highlighting */}
             {/* SGP to SHA */}
             <path
               d="M 760 310 Q 780 260 790 220"
               fill="none"
               stroke={congestionMode ? "#EF4444" : "#00D2FF"}
-              strokeWidth="1.5"
+              strokeWidth={isRouteHighlighted("SGP-SIN", "CHN-SHA") ? "2" : "1"}
               strokeDasharray={congestionMode ? "4 4" : "none"}
-              opacity="0.6"
+              opacity={isRouteHighlighted("SGP-SIN", "CHN-SHA") ? "0.8" : "0.15"}
+              className="transition-all duration-500"
             />
             {/* SHA to LAX */}
             <path
               d="M 790 220 Q 980 100 1000 160 M 0 160 Q 80 180 180 190"
               fill="none"
               stroke={congestionMode ? "#EF4444" : "#00D2FF"}
-              strokeWidth="1.5"
+              strokeWidth={isRouteHighlighted("CHN-SHA", "USA-LAX") ? "2" : "1"}
               strokeDasharray={congestionMode ? "4 4" : "none"}
-              opacity="0.6"
+              opacity={isRouteHighlighted("CHN-SHA", "USA-LAX") ? "0.8" : "0.15"}
+              className="transition-all duration-500"
             />
             {/* SGP to RTM */}
             <path
               d="M 760 310 Q 620 280 480 130"
               fill="none"
               stroke={congestionMode ? "#EF4444" : "#00D2FF"}
-              strokeWidth="1.5"
+              strokeWidth={isRouteHighlighted("SGP-SIN", "NLD-RTM") ? "2" : "1"}
               strokeDasharray={congestionMode ? "4 4" : "none"}
-              opacity="0.6"
+              opacity={isRouteHighlighted("SGP-SIN", "NLD-RTM") ? "0.8" : "0.15"}
+              className="transition-all duration-500"
             />
             {/* RTM to LAX */}
             <path
               d="M 480 130 Q 320 120 180 190"
               fill="none"
               stroke={congestionMode ? "#EF4444" : "#00D2FF"}
-              strokeWidth="1.5"
+              strokeWidth={isRouteHighlighted("NLD-RTM", "USA-LAX") ? "2" : "1"}
               strokeDasharray={congestionMode ? "4 4" : "none"}
-              opacity="0.6"
+              opacity={isRouteHighlighted("NLD-RTM", "USA-LAX") ? "0.8" : "0.15"}
+              className="transition-all duration-500"
             />
 
             {/* Port Dots */}
@@ -193,7 +232,6 @@ export default function GlobalOperationsHub() {
               const isSelected = selectedPort?.code === port.code;
               const hasAlert = congestionMode && (port.code === "USA-LAX" || port.code === "NLD-RTM");
               const strokeColor = hasAlert ? "#EF4444" : isSelected ? "#D4AF37" : "#00D2FF";
-              const fillColor = hasAlert ? "rgba(239, 68, 68, 0.2)" : isSelected ? "rgba(212, 175, 55, 0.2)" : "rgba(0, 210, 255, 0.2)";
 
               return (
                 <g
@@ -204,17 +242,19 @@ export default function GlobalOperationsHub() {
                   <circle
                     cx={port.x}
                     cy={port.y}
-                    r={isSelected ? "8" : "5"}
+                    r={isSelected ? "7" : "5"}
                     fill={strokeColor}
+                    className="transition-all duration-300"
                   />
                   <circle
                     cx={port.x}
                     cy={port.y}
-                    r={isSelected ? "14" : "10"}
+                    r={isSelected ? "13" : "9"}
                     fill="none"
                     stroke={strokeColor}
                     strokeWidth="1"
-                    opacity={isSelected ? "0.8" : "0.3"}
+                    opacity={isSelected ? "0.8" : "0.2"}
+                    className="transition-all duration-300"
                   />
                   <text
                     x={port.x}
@@ -233,15 +273,14 @@ export default function GlobalOperationsHub() {
             })}
           </svg>
 
-          {/* Clean Overlay Detail Card */}
+          {/* Overlay Detail Card */}
           {selectedPort && (
-            <div className="absolute bottom-6 left-6 right-6 md:right-auto md:w-[320px] bg-[#050814]/90 border border-white/5 p-6 flex flex-col gap-4">
+            <div className="absolute bottom-6 left-6 right-6 md:right-auto md:w-[320px] bg-[#050814]/95 border border-white/5 p-6 flex flex-col gap-4">
               <div className="flex justify-between items-center">
                 <span className="text-[9px] font-orbitron text-gray-500 tracking-wider">
                   TELEMETRY // {selectedPort.code}
                 </span>
                 
-                {/* Standard Badges */}
                 <span
                   className={`text-[8px] font-orbitron font-semibold uppercase px-2 py-0.5 border ${
                     congestionMode && (selectedPort.code === "USA-LAX" || selectedPort.code === "NLD-RTM")
@@ -271,8 +310,8 @@ export default function GlobalOperationsHub() {
                   <span className="text-[10px] text-gray-500 uppercase block">Efficiency</span>
                   <span className="text-base font-bold font-orbitron text-white">
                     {congestionMode && (selectedPort.code === "USA-LAX" || selectedPort.code === "NLD-RTM")
-                      ? (parseFloat(selectedPort.efficiency) - 15).toFixed(1) + "%"
-                      : selectedPort.efficiency}
+                      ? (animatedEfficiency - 15).toFixed(1) + "%"
+                      : animatedEfficiency.toFixed(1) + "%"}
                   </span>
                 </div>
                 <div>
